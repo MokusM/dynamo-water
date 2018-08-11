@@ -10,57 +10,110 @@
 	<link rel="icon" type="image/x-icon" href="favicon.ico" />
 	<link rel="stylesheet" type="text/css" href="css/style.css" />	
 </head>
-<body class="loaded">
+<body>
+    <div id="container"></div>
+    <script src="http://threejs.org/build/three.min.js"></script>
 
-							
-<!-- BEGIN BODY -->
+    <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv;
+        void main() {
+            // vUv = vec2(1.0 - position.x,1.0 - position.y);
+            vUv = (position.xy+1.0)*0.5;
+            // vUv.x=1.0-vUv.x;
+            // vUv.y=1.0-vUv.y;
+            // gl_Position = vec4( position, 1.0 );
+             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
 
-<div class="main-wrapper">
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        varying vec2 vUv;
+        uniform vec2 u_resolution;
+        uniform vec2 u_mouse;
+        uniform float u_time;
+        uniform sampler2D texture;
+        uniform sampler2D map;
+        void main() {
 
-<!-- BEGIN CONTENT -->
+            vec2 xy = vUv.xy / u_resolution.xy;
+            float map=texture2D(map,vUv).r;
+            float m =  (u_mouse.x/u_resolution.x - 0.5) * 0.01;
+            
+            float frequency=100.0;
+            float amplitude=0.006;
+            float distortion=0.6* sin(vUv.y*frequency + u_time)*amplitude +m;
+            // float distortion=m;
+            vec4 color=texture2D(texture,vec2(vUv.x + distortion * map, vUv.y));
+            gl_FragColor = vec4((1.0-map)*color.rgb+ map*vec3(color.r+color.g+color.b)/3.0,1.0);
+        }
+    </script>
 
-	<main class="content">		
-		<div class="wrapper">
-				
-		</div>		
-	</main>	
-			
-<!-- CONTENT EOF   -->
+    <script>
+        var container;
+        var camera, scene, renderer;
+        var uniforms;
+        var mouse = {x:0, y:0};
+        var loader = new THREE.TextureLoader();
+        document.onmousemove = getMouseXY;
+        init();
+        animate();
+        function getMouseXY(e) {
+            mouse.x = e.pageX;
+            mouse.y = e.pageY;
+            uniforms.u_mouse.value.x = mouse.x;
+            uniforms.u_mouse.value.y = mouse.y;
+        }
+        function init() {
+            container = document.getElementById( 'container' );
+            
+            camera = new THREE.Camera();
+            camera.position.z = 1;
+            scene = new THREE.Scene();
+            var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
+            uniforms = {
+                u_time: { type: "f", value: 1.0 },
+                u_mouse: { type: "v2", value: new THREE.Vector2() },
+                u_resolution: { type: "v2", value: new THREE.Vector2() },
+                texture: {value: loader.load( "texture.jpg" ) },
+                map: {value: loader.load( "map2.jpg" ) }
+            };
+            var material = new THREE.ShaderMaterial( {
+                uniforms: uniforms,
+                vertexShader: document.getElementById( 'vertexShader' ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+            } );
+            var mesh = new THREE.Mesh( geometry, material );
+            scene.add( mesh );
+            renderer = new THREE.WebGLRenderer();
+            renderer.setPixelRatio( window.devicePixelRatio );
+            
+            container.appendChild( renderer.domElement );
+            onWindowResize();
+            window.addEventListener( 'resize', onWindowResize, false );
+        }
+        function onWindowResize( event ) {
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            uniforms.u_resolution.value.x = 600;
+            uniforms.u_resolution.value.y = 337;
+            uniforms.u_mouse.value.x = mouse.x;
+            uniforms.u_mouse.value.y = mouse.y;
 
-<!-- BEGIN HEADER -->
 
-	<header>		
-		<div class="wrapper">
 
-		</div>		
-	</header>
-	
-<!-- HEADER EOF   -->	
-
-<!-- BEGIN FOOTER -->	
-	
-	<footer>
-		<div class="wrapper">
-			
-		</div>	
-	</footer>
-	
-<!-- FOOTER EOF   -->
-
-</div>		
-
-<div class="icon-load"></div>		
-
-<!-- BODY EOF   -->
-	
-	<script src="js/jquery-3.0.0.min.js"></script>		
-	<script src="js/jquery-migrate-1.4.1.min.js" ></script>
-	<!--
-	<script src="js/components/jquery.fancybox.js" ></script>
-	<script src="js/components/jquery.formstyler.js" ></script>
-	<script src="js/components/slick.js" ></script>
-	<script src="js/components/jquery.mCustomScrollbar.js" ></script>
-	-->
-	<script src="js/custom.js" ></script>
+            renderer.setSize( 600,337 );
+            uniforms.u_resolution.value.x = 600;
+            uniforms.u_resolution.value.y = 337;
+            uniforms.u_mouse.value.x = mouse.x;
+            uniforms.u_mouse.value.y = mouse.y;
+        }
+        function animate() {
+            requestAnimationFrame( animate );
+            render();
+        }
+        function render() {
+            uniforms.u_time.value += 0.05;
+            renderer.render( scene, camera );
+        }
+    </script>
+    <img src="texture.jpg" alt="" width="600">
 </body>
-</html>
